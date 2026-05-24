@@ -252,13 +252,13 @@ function App() {
       <main className="app-shell">
         <section className="phone-frame splash-frame">
           <div className="splash-content">
-            <div className="brand-row">
-              <img className="app-icon splash-icon" src="/meaari-app-icon.png" alt="" />
-              <p className="brand">meaari / 메아리</p>
-            </div>
             <div className="splash-hero">
               <h1>책에서 붙잡은 생각이<br />필요한 순간<br />다시 돌아와요</h1>
               <p className="hero-copy">책에서 붙잡은 문장이,<br />필요한 순간 다시 떠오르도록.</p>
+            </div>
+            <div className="brand-row splash-brand">
+              <img className="app-icon splash-icon" src="/meaari-app-icon.png" alt="" />
+              <p className="brand">메아리</p>
             </div>
           </div>
           <div className="splash-loader">
@@ -279,7 +279,7 @@ function App() {
           <header className="onboarding-header">
             <div className="brand-row">
               <img className="app-icon" src="/meaari-app-icon.png" alt="" />
-              <p className="brand">meaari / 메아리</p>
+              <p className="brand">메아리</p>
             </div>
             <div className="onboarding-step-row">
               <span className="onboarding-step active" />
@@ -423,7 +423,7 @@ function App() {
                       ))}
                     </select>
                     <button className="block-save-btn" onClick={saveEdit} type="button">저장</button>
-                    <button className="block-icon-btn danger" onClick={() => deleteBlock(block.id)} type="button" aria-label="삭제">
+                    <button className="block-icon-btn" onClick={() => setEditingId(null)} type="button" aria-label="취소">
                       <X size={15} />
                     </button>
                   </div>
@@ -433,9 +433,14 @@ function App() {
                 <div key={block.id} className="block-card">
                   <span className="block-time-chip">{formatRange(block.timeFrom, block.timeTo)}</span>
                   <span className="block-name">{block.name}</span>
-                  <button className="block-icon-btn" onClick={() => startEdit(block)} type="button" aria-label="수정">
-                    <Pencil size={14} />
-                  </button>
+                  <div className="block-actions">
+                    <button className="block-icon-btn" onClick={() => startEdit(block)} type="button" aria-label="수정">
+                      <Pencil size={14} />
+                    </button>
+                    <button className="block-icon-btn danger" onClick={() => deleteBlock(block.id)} type="button" aria-label="삭제">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               )
             ))}
@@ -521,7 +526,7 @@ function App() {
           <header className="form-hero">
             <div className="brand-row">
               <img className="app-icon" src="/meaari-app-icon.png" alt="" />
-              <p className="brand">meaari / 메아리</p>
+              <p className="brand">메아리</p>
             </div>
             <div>
               <p className="eyebrow">{isReturn ? '새 기록' : '첫 기록'}</p>

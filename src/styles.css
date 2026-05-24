@@ -719,8 +719,12 @@ h2 {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 40px;
+  gap: 32px;
   justify-content: center;
+}
+
+.splash-brand {
+  animation: splash-fade-up 0.5s ease 0.5s both;
 }
 
 .splash-icon {
@@ -864,6 +868,13 @@ h2 {
   font-weight: 600;
   line-height: 1.4;
   min-width: 0;
+}
+
+.block-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
 }
 
 .block-icon-btn {
