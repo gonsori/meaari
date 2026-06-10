@@ -105,9 +105,16 @@ function App() {
   const [selectedMoment, setSelectedMoment] = useState('');
 
   /* ── OCR 상태 ───────────────────────────────────────────────── */
-  const [showOcrPanel,  setShowOcrPanel]  = useState(false);
-  const [ocrStep,       setOcrStep]       = useState('idle'); // idle | processing | done | error
-  const [ocrPreviewUrl, setOcrPreviewUrl] = useState(null);
+  const [showOcrPanel,    setShowOcrPanel]    = useState(false);
+  const [ocrStep,         setOcrStep]         = useState('idle'); // idle | processing | done | error
+  const [ocrPreviewUrl,   setOcrPreviewUrl]   = useState(null);
+  const [ocrLines,        setOcrLines]        = useState([]); // [{id,text,bbox}]
+  const [imageNaturalSize,setImageNaturalSize] = useState(null); // {width,height}
+  /* B안 핸들 선택 */
+  const [selStartIdx,  setSelStartIdx]  = useState(null); // 선택 시작 줄 인덱스
+  const [selEndIdx,    setSelEndIdx]    = useState(null); // 선택 끝 줄 인덱스
+  const [dragging,     setDragging]     = useState(null); // 'start' | 'end' | null
+  const imageContainerRef = useRef(null);
   const ocrInputRef     = useRef(null);
   const coverInputRef   = useRef(null);
 
@@ -121,6 +128,25 @@ function App() {
   const [activeCardMenu,  setActiveCardMenu]  = useState(null);
   const [editingCardId,   setEditingCardId]   = useState(null);
   const [editingCardText, setEditingCardText] = useState('');
+  const [toastMsg,        setToastMsg]        = useState(null);
+
+  /* 핸들 드래그 — 이미지 바깥으로 나가도 추적 */
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => handleHandleMove(e, dragging);
+    const onUp   = () => setDragging(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend',  onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend',  onUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, selStartIdx, selEndIdx]);
 
   /* ── 파생 값 ────────────────────────────────────────────────── */
 
@@ -181,24 +207,116 @@ function App() {
     const url = URL.createObjectURL(file);
     setOcrPreviewUrl(url);
     setOcrStep('processing');
+
+    // 이미지 자연 크기 측정 (bbox 좌표 % 변환에 사용)
+    const imgEl = new Image();
+    imgEl.src = url;
+    await new Promise((res) => { imgEl.onload = res; });
+    setImageNaturalSize({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
+
     try {
       const { createWorker } = await import('tesseract.js');
       const worker = await createWorker(['kor', 'eng']);
-      const { data: { text } } = await worker.recognize(url);
+      // v7: blocks: true 로 설정해야 줄별 bbox 데이터가 나옴
+      const { data } = await worker.recognize(url, {}, { blocks: true });
       await worker.terminate();
-      const cleaned = text.trim().replace(/\n+/g, ' ');
-      setQuoteText(cleaned);
+
+      let lines = [];
+
+      // v7 구조: data.blocks → paragraphs → lines (각 line에 bbox 있음)
+      if (data.blocks?.length > 0) {
+        for (const block of data.blocks) {
+          for (const para of block.paragraphs || []) {
+            for (const line of para.lines || []) {
+              const text = line.text?.trim().replace(/\n/g, ' ') || '';
+              if (text.length > 1 && line.bbox) {
+                lines.push({
+                  id: lines.length,
+                  text,
+                  bbox: line.bbox, // { x0, y0, x1, y1 }
+                  selected: false,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // fallback: blocks 없으면 text 줄 분리 (bbox 없음)
+      if (lines.length === 0) {
+        lines = (data.text || '')
+          .split('\n')
+          .filter((t) => t.trim().length > 1)
+          .map((t, i) => ({
+            id: i,
+            text: t.trim(),
+            bbox: null,
+            selected: false,
+          }));
+      }
+
+      setOcrLines(lines);
       setOcrStep('done');
-    } catch {
+    } catch (err) {
+      console.error('[OCR] error:', err);
       setOcrStep('error');
     }
-    // input 초기화 (같은 파일 재선택 가능하게)
     if (ocrInputRef.current) ocrInputRef.current.value = '';
+  };
+
+  /* y% 위치에서 가장 가까운 줄 인덱스 */
+  const getLineIdxFromY = (yPct) => {
+    if (!ocrLines.length || !imageNaturalSize) return 0;
+    let closest = 0, closestDist = Infinity;
+    ocrLines.forEach((line, i) => {
+      const mid = ((line.bbox.y0 + line.bbox.y1) / 2) / imageNaturalSize.height;
+      const d = Math.abs(yPct - mid);
+      if (d < closestDist) { closestDist = d; closest = i; }
+    });
+    return closest;
+  };
+
+  /* 사진 탭 → 초기 줄 선택 */
+  const handleImageTap = (e) => {
+    if (dragging) return;
+    const rect = imageContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const yPct = (clientY - rect.top) / rect.height;
+    const idx = getLineIdxFromY(yPct);
+    setSelStartIdx(idx);
+    setSelEndIdx(idx);
+  };
+
+  /* 핸들 드래그 */
+  const handleHandleMove = (e, handle) => {
+    const rect = imageContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const yPct = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    const idx = getLineIdxFromY(yPct);
+    if (handle === 'start') setSelStartIdx(Math.min(idx, selEndIdx ?? idx));
+    else                    setSelEndIdx(Math.max(idx, selStartIdx ?? idx));
+  };
+
+  /* 선택 범위 → quote 필드 */
+  const applyOcrSelection = () => {
+    if (selStartIdx === null || selEndIdx === null) return;
+    const s = Math.min(selStartIdx, selEndIdx);
+    const e = Math.max(selStartIdx, selEndIdx);
+    setQuoteText(ocrLines.slice(s, e + 1).map((l) => l.text).join(' '));
+    setShowOcrPanel(false);
+    resetOcr();
   };
 
   const resetOcr = () => {
     setOcrStep('idle');
     setOcrPreviewUrl(null);
+    setOcrLines([]);
+    setImageNaturalSize(null);
+    setSelStartIdx(null);
+    setSelEndIdx(null);
+    setDragging(null);
     if (ocrInputRef.current) ocrInputRef.current.value = '';
   };
 
@@ -244,6 +362,8 @@ function App() {
   const handleFeedback = (quoteId, value) => {
     const updated = quotes.map((q) => q.id === quoteId ? { ...q, feedback: value } : q);
     setQuotes(updated); persist('meaari.quotes', updated);
+    setToastMsg('타이밍을 기억했어요');
+    setTimeout(() => setToastMsg(null), 2500);
   };
 
   /* ── 책 선택 핸들러 ─────────────────────────────────────────── */
@@ -567,14 +687,122 @@ function App() {
                   )}
 
                   {ocrStep === 'done' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-                      <p className="ocr-result-note">
-                        <Check size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                        인식 완료. 아래에서 확인하세요.
-                      </p>
-                      <button onClick={resetOcr} className="ocr-retry-btn" type="button">
-                        <RotateCcw size={12} /> 다시
-                      </button>
+                    <div className="ocr-select-wrap">
+                      {imageNaturalSize && ocrLines[0]?.bbox ? (
+                        <>
+                          <p className="ocr-tap-hint">
+                            {selStartIdx === null ? '문장을 탭해서 선택하세요' : '핸들을 드래그해 범위를 조정하세요'}
+                          </p>
+                          {/* 사진 + 하이라이트 + 핸들 */}
+                          <div
+                            className="ocr-image-wrap"
+                            ref={imageContainerRef}
+                            onClick={handleImageTap}
+                            onTouchStart={handleImageTap}
+                          >
+                            <img src={ocrPreviewUrl} className="ocr-select-img" alt="" draggable={false} />
+
+                            {/* 선택 범위 하이라이트 */}
+                            {selStartIdx !== null && selEndIdx !== null && (() => {
+                              const s = Math.min(selStartIdx, selEndIdx);
+                              const e = Math.max(selStartIdx, selEndIdx);
+                              const top  = ocrLines[s].bbox.y0 / imageNaturalSize.height * 100;
+                              const bot  = ocrLines[e].bbox.y1 / imageNaturalSize.height * 100;
+                              const left = Math.min(...ocrLines.slice(s, e+1).map(l => l.bbox.x0)) / imageNaturalSize.width * 100;
+                              const right= Math.max(...ocrLines.slice(s, e+1).map(l => l.bbox.x1)) / imageNaturalSize.width * 100;
+                              return (
+                                <div className="ocr-sel-highlight" style={{
+                                  top: `${top}%`, height: `${bot - top}%`,
+                                  left: `${left}%`, width: `${right - left}%`,
+                                }} />
+                              );
+                            })()}
+
+                            {/* 상단 핸들 (start) */}
+                            {selStartIdx !== null && (() => {
+                              const s = Math.min(selStartIdx, selEndIdx ?? selStartIdx);
+                              const line = ocrLines[s];
+                              return (
+                                <div
+                                  className="ocr-handle ocr-handle-start"
+                                  style={{
+                                    left: `${line.bbox.x0 / imageNaturalSize.width * 100}%`,
+                                    top:  `${line.bbox.y0 / imageNaturalSize.height * 100}%`,
+                                  }}
+                                  onMouseDown={(e) => { e.stopPropagation(); setDragging('start'); }}
+                                  onTouchStart={(e) => { e.stopPropagation(); setDragging('start'); }}
+                                  onMouseMove={(e) => dragging === 'start' && handleHandleMove(e, 'start')}
+                                  onTouchMove={(e) => dragging === 'start' && handleHandleMove(e, 'start')}
+                                  onMouseUp={() => setDragging(null)}
+                                  onTouchEnd={() => setDragging(null)}
+                                />
+                              );
+                            })()}
+
+                            {/* 하단 핸들 (end) */}
+                            {selEndIdx !== null && (() => {
+                              const e = Math.max(selStartIdx ?? selEndIdx, selEndIdx);
+                              const line = ocrLines[e];
+                              return (
+                                <div
+                                  className="ocr-handle ocr-handle-end"
+                                  style={{
+                                    left: `${line.bbox.x1 / imageNaturalSize.width * 100}%`,
+                                    top:  `${line.bbox.y1 / imageNaturalSize.height * 100}%`,
+                                  }}
+                                  onMouseDown={(e) => { e.stopPropagation(); setDragging('end'); }}
+                                  onTouchStart={(e) => { e.stopPropagation(); setDragging('end'); }}
+                                  onMouseMove={(e) => dragging === 'end' && handleHandleMove(e, 'end')}
+                                  onTouchMove={(e) => dragging === 'end' && handleHandleMove(e, 'end')}
+                                  onMouseUp={() => setDragging(null)}
+                                  onTouchEnd={() => setDragging(null)}
+                                />
+                              );
+                            })()}
+                          </div>
+                        </>
+                      ) : (
+                        /* fallback: bbox 없으면 텍스트 리스트 */
+                        <div className="ocr-lines-list">
+                          <p className="ocr-lines-hint">가져올 문장을 탭하세요</p>
+                          {ocrLines.map((line, i) => {
+                            const s = selStartIdx ?? -1, e = selEndIdx ?? -1;
+                            const inRange = i >= Math.min(s,e) && i <= Math.max(s,e);
+                            return (
+                              <button
+                                key={line.id}
+                                className={`ocr-line-item${inRange ? ' selected' : ''}`}
+                                onClick={() => { setSelStartIdx(i); setSelEndIdx(i); }}
+                                type="button"
+                              >
+                                {line.text}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* 하단 액션 바 */}
+                      <div className="ocr-action-bar">
+                        <span className="ocr-select-count">
+                          {selStartIdx !== null
+                            ? `${Math.abs((selEndIdx??selStartIdx) - selStartIdx) + 1}줄 선택됨`
+                            : '문장을 탭해 선택하세요'}
+                        </span>
+                        <div className="ocr-action-btns">
+                          <button onClick={resetOcr} className="ocr-retry-btn" type="button">
+                            <RotateCcw size={12} /> 다시
+                          </button>
+                          <button
+                            className="ocr-apply-btn"
+                            onClick={applyOcrSelection}
+                            disabled={selStartIdx === null}
+                            type="button"
+                          >
+                            이 문장 가져오기
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -821,47 +1049,77 @@ function App() {
     <div className="home-scroll" onClick={() => setActiveCardMenu(null)}>
       {todayQuote ? (
         <section className="today-section">
-          <div className="section-row">
-            <p className="section-label"><Sparkles size={12} /> 오늘의 문장</p>
-            <span className="moment-chip">{todayQuote.momentLabel}</span>
-          </div>
+          <p className="today-section-label">오늘의 문장</p>
 
-          <div className="reminder-card">
-            {/* 북커버 사진 — 2:3 세로형 썸네일 (왼쪽) */}
-            {todayQuote.bookCoverUrl && (
-              <img src={todayQuote.bookCoverUrl} className="reminder-card-photo" alt="" />
+          <div className="today-card">
+            {/* 북커버 — 상단 full */}
+            {todayQuote.bookCoverUrl ? (
+              <div
+                className="today-card-img"
+                style={{ backgroundImage: `url(${todayQuote.bookCoverUrl})` }}
+              />
+            ) : (
+              <div className="today-card-img today-card-img--empty" />
             )}
-            {/* 내용 래퍼 — 사진 오른쪽 */}
-            <div className="reminder-card-body">
-            <blockquote className="reminder-quote">{todayQuote.quoteText}</blockquote>
-            {todayQuote.bookTitle && (
-              <span className="reminder-source">— 『{todayQuote.bookTitle}』{todayQuote.author ? `, ${todayQuote.author}` : ''}</span>
-            )}
-            <p className="reminder-why">
-              <strong>{todayQuote.momentLabel}</strong>에 이 문장이 찾아왔어요
-            </p>
 
-            {!todayQuote.feedback ? (
-              <div className="feedback-section">
-                <p className="feedback-prompt">이 문장, 지금 잘 왔나요?</p>
-                <div className="feedback-row">
-                  <button className="feedback-btn match" onClick={() => handleFeedback(todayQuote.id, 'match')} type="button">지금 딱 맞았어</button>
-                  <button className="feedback-btn miss"  onClick={() => handleFeedback(todayQuote.id, 'miss')}  type="button">문장은 좋은데 지금은 아냐</button>
-                  <button className="feedback-btn skip"  onClick={() => handleFeedback(todayQuote.id, 'skip')}  type="button">그냥 지나갈래</button>
+            <div className="today-card-body">
+              {/* 책 정보 */}
+              <div className="today-card-meta">
+                <div>
+                  {todayQuote.bookTitle && (
+                    <p className="today-card-booktitle">{todayQuote.bookTitle}</p>
+                  )}
+                  {todayQuote.author && (
+                    <p className="today-card-author">{todayQuote.author}</p>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="feedback-done">
-                <Check size={13} />
-                <span>
-                  {todayQuote.feedback === 'match' && '지금 딱 맞았어요'}
-                  {todayQuote.feedback === 'miss'  && '타이밍을 기억했어요'}
-                  {todayQuote.feedback === 'skip'  && '넘겼어요'}
+
+              {/* 문장 */}
+              <blockquote className="today-card-quote">{todayQuote.quoteText}</blockquote>
+
+              {/* 하단: 모먼트 + 날짜 */}
+              <div className="today-card-foot">
+                {todayQuote.momentLabel ? (
+                  <span className="today-card-moment">{todayQuote.momentLabel}</span>
+                ) : (
+                  <button className="today-card-timing-cta" type="button">
+                    이 문장, 언제 받을까요? →
+                  </button>
+                )}
+                <span className="today-card-date">
+                  {todayQuote.savedAt
+                    ? new Date(todayQuote.savedAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                    : ''}
                 </span>
               </div>
+            </div>
+
+            {/* 평가 섹션 — 타이밍 있을 때만 */}
+            {todayQuote.momentLabel && (
+              todayQuote.feedback ? (
+                <div className="today-card-feedback-done">
+                  메아리가 더 잘 찾아올게요
+                </div>
+              ) : (
+                <div className="today-card-feedback">
+                  <p className="today-card-feedback-q">이 타이밍이 맞았나요?</p>
+                  <div className="today-card-feedback-btns">
+                    <button
+                      className="today-fb-btn"
+                      onClick={() => handleFeedback(todayQuote.id, 'match')}
+                      type="button"
+                    >이 순간이 적절해요</button>
+                    <button
+                      className="today-fb-btn"
+                      onClick={() => handleFeedback(todayQuote.id, 'miss')}
+                      type="button"
+                    >지금은 아니야</button>
+                  </div>
+                </div>
+              )
             )}
-            </div>{/* /reminder-card-body */}
-          </div>{/* /reminder-card */}
+          </div>
         </section>
       ) : (
         <div className="empty-home">
@@ -922,6 +1180,11 @@ function App() {
           </button>
         </nav>
       </section>
+
+      {/* 토스트 */}
+      {toastMsg && (
+        <div className="toast-msg">{toastMsg} ✓</div>
+      )}
     </main>
   );
 }

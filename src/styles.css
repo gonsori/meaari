@@ -678,6 +678,189 @@ h2 {
 }
 .ocr-retry-btn:hover { border-color: var(--grid-blue); color: var(--grid-blue-deep); }
 
+/* ── OCR 줄 선택 UI ─────────────────────────────────────────── */
+.ocr-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 사진 컨테이너 — 오버레이 기준점 */
+.ocr-image-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+.ocr-select-img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* 줄별 탭 오버레이 */
+.ocr-line-overlay {
+  background: rgba(159, 199, 212, 0.12);
+  border: 1.5px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  position: absolute;
+  transition: background 100ms, border-color 100ms;
+}
+.ocr-line-overlay:hover {
+  background: rgba(159, 199, 212, 0.32);
+  border-color: var(--grid-blue);
+}
+.ocr-line-overlay.selected {
+  background: rgba(109, 167, 185, 0.42);
+  border-color: var(--grid-blue-deep);
+  border-width: 2px;
+}
+
+/* 하단 액션 바 */
+.ocr-action-bar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.ocr-select-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ocr-action-btns {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+.ocr-apply-btn {
+  background: var(--grid-blue-deep);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  transition: opacity 160ms;
+}
+.ocr-apply-btn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* ── OCR B안 — 핸들 선택 ────────────────────────────────────── */
+.ocr-tap-hint {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+/* 선택 범위 하이라이트 */
+.ocr-sel-highlight {
+  background: rgba(109, 167, 185, 0.38);
+  border: 2px solid #4A9AB5;
+  border-radius: 3px;
+  pointer-events: none;
+  position: absolute;
+}
+
+/* 핸들 공통 */
+.ocr-handle {
+  cursor: grab;
+  position: absolute;
+  touch-action: none;
+  z-index: 10;
+}
+.ocr-handle:active { cursor: grabbing; }
+
+/* 상단 핸들 — 동그라미 위, 세로선 아래 */
+.ocr-handle-start {
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ocr-handle-start::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: #4A9AB5;
+  border: 2.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+  flex-shrink: 0;
+}
+.ocr-handle-start::after {
+  content: '';
+  width: 2.5px;
+  height: 22px;
+  background: #4A9AB5;
+}
+
+/* 하단 핸들 — 세로선 위, 동그라미 아래 */
+.ocr-handle-end {
+  transform: translate(-50%, 0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ocr-handle-end::before {
+  content: '';
+  width: 2.5px;
+  height: 22px;
+  background: #4A9AB5;
+}
+.ocr-handle-end::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: #4A9AB5;
+  border: 2.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+  flex-shrink: 0;
+}
+
+/* OCR fallback — 텍스트 리스트 선택 */
+.ocr-lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ocr-lines-hint {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+}
+.ocr-line-item {
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 11px;
+  text-align: left;
+  transition: background 100ms, border-color 100ms;
+  width: 100%;
+}
+.ocr-line-item:hover { background: rgba(159,199,212,0.1); border-color: var(--grid-blue); }
+.ocr-line-item.selected {
+  background: rgba(109,167,185,0.15);
+  border-color: var(--grid-blue-deep);
+  border-width: 1.5px;
+  font-weight: 500;
+}
+
 /* ── 책 정보 (커버 사진 + 텍스트 필드) ─────────────────────── */
 .book-row {
   align-items: stretch;
@@ -1472,4 +1655,184 @@ h2 {
 }
 @media (max-width: 380px) {
   .phone-frame { gap: 16px; padding-left: 18px; padding-right: 18px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   오늘의 문장 카드 — 29CM 스타일
+══════════════════════════════════════════════════════════════ */
+.today-section { padding: 20px 0 8px; }
+
+.today-section-label {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding: 0 2px;
+}
+
+/* 카드 본체 */
+.today-card {
+  background: var(--paper-light);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.07);
+  overflow: hidden;
+}
+
+/* 북커버 이미지 — 상단 full */
+.today-card-img {
+  width: 100%;
+  height: 160px;
+  background: #C4BCB0 center/cover no-repeat;
+}
+.today-card-img--empty {
+  background: #D8D2C4;
+}
+
+/* 텍스트 영역 */
+.today-card-body {
+  padding: 16px 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 책 제목 Bold */
+.today-card-booktitle {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  margin: 0 0 2px;
+}
+
+/* 저자 Light */
+.today-card-author {
+  font-size: 10px;
+  font-weight: 300;
+  color: var(--muted);
+  margin: 0 0 14px;
+  letter-spacing: 0.02em;
+}
+
+/* 문장 — 핵심, 크고 과감하게 */
+.today-card-quote {
+  font-family: 'Gowun Batang', serif;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+  margin: 0 0 18px;
+  padding: 0;
+  border: none;
+}
+
+/* 하단 — 모먼트 + 날짜 */
+.today-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  margin: 0 0 0;
+}
+
+.today-card-moment {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.today-card-timing-cta {
+  background: none;
+  border: none;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.today-card-date {
+  font-size: 9px;
+  font-weight: 300;
+  color: var(--line);
+  letter-spacing: 0.04em;
+}
+
+/* 평가 섹션 — 카드 하단 */
+.today-card-feedback {
+  border-top: 1px solid var(--line);
+  padding: 14px 18px 16px;
+}
+.today-card-feedback-q {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: #AAA;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.today-card-feedback-btns {
+  display: flex;
+  gap: 8px;
+}
+.today-fb-btn {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  border-radius: 2px;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+.today-fb-btn:active {
+  background: var(--ink);
+  color: var(--paper-light);
+  border-color: var(--ink);
+}
+
+/* 평가 완료 상태 */
+.today-card-feedback-done {
+  border-top: 1px solid var(--line);
+  padding: 12px 18px 14px;
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* ── 토스트 ────────────────────────────────────────────────── */
+.toast-msg {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper-light);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  padding: 11px 20px;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  animation: toast-in 0.2s ease;
+  z-index: 999;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
