@@ -719,10 +719,12 @@ function App() {
           </div>
 
           <div className="reminder-card">
-            {/* 북커버 사진 — RED RULE 카드 상단 */}
+            {/* 북커버 사진 — 2:3 세로형 썸네일 (왼쪽) */}
             {todayQuote.bookCoverUrl && (
               <img src={todayQuote.bookCoverUrl} className="reminder-card-photo" alt="" />
             )}
+            {/* 내용 래퍼 — 사진 오른쪽 */}
+            <div className="reminder-card-body">
             <blockquote className="reminder-quote">{todayQuote.quoteText}</blockquote>
             {todayQuote.bookTitle && (
               <span className="reminder-source">— 『{todayQuote.bookTitle}』{todayQuote.author ? `, ${todayQuote.author}` : ''}</span>
@@ -750,7 +752,8 @@ function App() {
                 </span>
               </div>
             )}
-          </div>
+            </div>{/* /reminder-card-body */}
+          </div>{/* /reminder-card */}
         </section>
       ) : (
         <div className="empty-home">
