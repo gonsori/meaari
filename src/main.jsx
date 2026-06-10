@@ -111,6 +111,9 @@ function App() {
   const ocrInputRef     = useRef(null);
   const coverInputRef   = useRef(null);
 
+  /* ── 책 자동완성 ─────────────────────────────────────────────── */
+  const [showBookSuggestions, setShowBookSuggestions] = useState(false);
+
   /* ── 전체 기록 ──────────────────────────────────────────────── */
   const [quotes, setQuotes] = useState(() => load('meaari.quotes', []));
 
@@ -120,6 +123,29 @@ function App() {
   const [editingCardText, setEditingCardText] = useState('');
 
   /* ── 파생 값 ────────────────────────────────────────────────── */
+
+  /* 등록된 책 목록 — quotes에서 중복 제거, 최신순 */
+  const registeredBooks = useMemo(() => {
+    const seen = new Set();
+    const books = [];
+    for (const q of quotes) {
+      if (q.bookTitle && !seen.has(q.bookTitle)) {
+        seen.add(q.bookTitle);
+        books.push({ title: q.bookTitle, author: q.author || '', bookCoverUrl: q.bookCoverUrl || null });
+      }
+    }
+    return books;
+  }, [quotes]);
+
+  /* 타이핑 중 자동완성 후보 — 부분 일치 (정확히 같은 건 제외) */
+  const bookSuggestions = useMemo(() => {
+    if (!bookTitle.trim()) return [];
+    const q = bookTitle.trim().toLowerCase();
+    return registeredBooks.filter(
+      (b) => b.title.toLowerCase().includes(q) && b.title.toLowerCase() !== q
+    );
+  }, [registeredBooks, bookTitle]);
+
   const selectedLabel = useMemo(
     () => reminderChannels.find((c) => c.id === selectedChannel)?.title ?? '위젯',
     [selectedChannel],
@@ -211,6 +237,7 @@ function App() {
     setQuoteText(''); setBookTitle(''); setAuthor(''); setBookCoverUrl(null);
     setSavedQuote(null); setSelectedMoment('');
     setShowOcrPanel(false); setOcrStep('idle'); setOcrPreviewUrl(null);
+    setShowBookSuggestions(false);
     setActiveTab('home'); setStep('home');
   };
 
@@ -219,9 +246,36 @@ function App() {
     setQuotes(updated); persist('meaari.quotes', updated);
   };
 
+  /* ── 책 선택 핸들러 ─────────────────────────────────────────── */
+  /* 칩·드롭다운에서 선택 시 — 제목+저자+커버 한번에 채움 */
+  const selectBook = (book) => {
+    setBookTitle(book.title);
+    setAuthor(book.author || '');
+    setBookCoverUrl(book.bookCoverUrl || null);
+    setShowBookSuggestions(false);
+  };
+
+  /* 제목 타이핑 핸들러 — 정확히 일치하면 자동 동기화 */
+  const handleBookTitleChange = (val) => {
+    setBookTitle(val);
+    if (val.trim()) {
+      const exact = registeredBooks.find(
+        (b) => b.title.toLowerCase() === val.trim().toLowerCase()
+      );
+      if (exact) {
+        setAuthor(exact.author || '');
+        setBookCoverUrl(exact.bookCoverUrl || null);
+        setShowBookSuggestions(false);
+        return;
+      }
+    }
+    setShowBookSuggestions(val.length > 0);
+  };
+
   const startNewRecording = () => {
     setStep('recording'); setActiveTab('home');
     setShowOcrPanel(false); setOcrStep('idle'); setOcrPreviewUrl(null);
+    setShowBookSuggestions(false);
   };
 
   const deleteQuote = (id) => {
@@ -546,10 +600,54 @@ function App() {
               </label>
             </div>
 
-            {/* ── 책 정보 (커버 사진 + 제목 + 저자) ── */}
-            <div className="book-row">
-              {/* 북커버 사진 업로드 */}
-              <label className="cover-upload-area">
+            {/* ── 책 정보 ── */}
+            <div className="book-section">
+              <span className="field-label">책</span>
+
+              {/* 제목 입력 + 자동완성 드롭다운 */}
+              <div className="book-title-wrap">
+                <label className="field-group">
+                  <span>책 제목</span>
+                  <input
+                    placeholder="모든 것은 기록된다"
+                    value={bookTitle}
+                    onChange={(e) => handleBookTitleChange(e.target.value)}
+                    onFocus={() => bookTitle.length > 0 && setShowBookSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowBookSuggestions(false), 150)}
+                    autoComplete="off"
+                  />
+                </label>
+                {showBookSuggestions && bookSuggestions.length > 0 && (
+                  <div className="book-suggestions-dropdown">
+                    {bookSuggestions.map((book) => (
+                      <button
+                        key={book.title}
+                        className="book-suggestion-item"
+                        onMouseDown={() => selectBook(book)}
+                        type="button"
+                      >
+                        {book.bookCoverUrl
+                          ? <img src={book.bookCoverUrl} className="book-chip-thumb" alt="" />
+                          : <div className="book-chip-thumb book-chip-thumb--empty"><BookOpen size={12} /></div>
+                        }
+                        <div className="book-suggestion-item-info">
+                          <span className="book-suggestion-title">{book.title}</span>
+                          {book.author && <span className="book-suggestion-author">{book.author}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 저자 */}
+              <label className="field-group">
+                <span>저자</span>
+                <input placeholder="김신지" value={author} onChange={(e) => setAuthor(e.target.value)} />
+              </label>
+
+              {/* 북커버 업로드 (컴팩트) */}
+              <label className="cover-upload-compact">
                 <input
                   ref={coverInputRef}
                   type="file"
@@ -559,25 +657,35 @@ function App() {
                   onChange={handleBookCoverChange}
                 />
                 {bookCoverUrl ? (
-                  <img src={bookCoverUrl} className="book-cover-img" alt="책 커버" />
+                  <div className="cover-compact-preview">
+                    <img src={bookCoverUrl} className="cover-compact-thumb" alt="책 커버" />
+                    <span className="cover-compact-change">커버 변경</span>
+                  </div>
                 ) : (
-                  <div className="cover-placeholder">
-                    <Camera size={16} />
-                    <span>커버 사진</span>
+                  <div className="cover-compact-placeholder">
+                    <Camera size={14} />
+                    <span>커버 사진 추가</span>
                   </div>
                 )}
               </label>
 
-              <div className="book-fields">
-                <label className="field-group">
-                  <span>책 제목</span>
-                  <input placeholder="모든 것은 기록된다" value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} />
-                </label>
-                <label className="field-group">
-                  <span>저자</span>
-                  <input placeholder="김신지" value={author} onChange={(e) => setAuthor(e.target.value)} />
-                </label>
-              </div>
+              {/* 최근 읽은 책 칩 (최신순 왼쪽) */}
+              {registeredBooks.length > 0 && (
+                <div className="book-recent-section">
+                  <span className="book-recent-label">최근 읽은 책</span>
+                  <div className="book-chips-row">
+                    {registeredBooks.map((book) => (
+                      <button key={book.title} className="book-chip" onClick={() => selectBook(book)} type="button">
+                        {book.bookCoverUrl
+                          ? <img src={book.bookCoverUrl} className="book-chip-thumb" alt="" />
+                          : <div className="book-chip-thumb book-chip-thumb--empty"><BookOpen size={12} /></div>
+                        }
+                        <span className="book-chip-title">{book.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button className="primary-action" disabled={!canSave} type="submit">저장하기</button>

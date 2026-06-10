@@ -727,6 +727,297 @@ h2 {
 }
 .book-fields { display: grid; gap: 9px; }
 
+/* ── 책 선택 UI (새 흐름) ───────────────────────────────────── */
+.book-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 공통 썸네일 — 2:3 세로형 */
+.book-chip-thumb {
+  aspect-ratio: 2 / 3;
+  border-radius: 4px;
+  filter: saturate(0.82) contrast(0.92) brightness(1.05);
+  flex-shrink: 0;
+  object-fit: cover;
+  width: 40px;
+}
+.book-chip-thumb--empty {
+  align-items: center;
+  background: var(--paper);
+  border: 1.5px dashed var(--line);
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+}
+
+/* ── 새 책 입력 UI (자동완성 + 칩) ─────────────────────────── */
+
+/* 제목 인풋 + 드롭다운 래퍼 */
+.book-title-wrap {
+  position: relative;
+}
+
+/* 자동완성 드롭다운 */
+.book-suggestions-dropdown {
+  background: var(--paper-light);
+  border: 1px solid var(--grid-blue);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  left: 0;
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+}
+.book-suggestion-item {
+  align-items: center;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 9px 12px;
+  text-align: left;
+  transition: background 120ms;
+  width: 100%;
+}
+.book-suggestion-item:last-child { border-bottom: none; }
+.book-suggestion-item:hover { background: rgba(159, 199, 212, 0.1); }
+.book-suggestion-item-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 컴팩트 커버 업로드 */
+.cover-upload-compact {
+  cursor: pointer;
+  display: block;
+}
+.cover-compact-placeholder {
+  align-items: center;
+  background: var(--paper);
+  border: 1.5px dashed var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  gap: 7px;
+  padding: 10px 14px;
+  transition: border-color 140ms, color 140ms;
+}
+.cover-upload-compact:hover .cover-compact-placeholder {
+  border-color: var(--grid-blue);
+  color: var(--grid-blue-deep);
+}
+.cover-compact-preview {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+.cover-compact-thumb {
+  aspect-ratio: 2 / 3;
+  border-radius: 4px;
+  filter: saturate(0.82) contrast(0.92) brightness(1.05);
+  flex-shrink: 0;
+  object-fit: cover;
+  width: 36px;
+}
+.cover-compact-change {
+  color: var(--grid-blue-deep);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 최근 읽은 책 */
+.book-recent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.book-recent-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* 상태 1 — 마지막 책 제안 (레거시, 미사용) */
+.book-suggestion-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.book-suggestion-card {
+  align-items: center;
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  text-align: left;
+  transition: border-color 140ms, background 140ms;
+  width: 100%;
+}
+.book-suggestion-card:hover {
+  background: rgba(159, 199, 212, 0.06);
+  border-color: var(--grid-blue);
+}
+.book-suggestion-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.book-suggestion-title {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.book-suggestion-author {
+  color: var(--muted);
+  font-size: 11px;
+}
+.book-suggestion-cta {
+  color: var(--grid-blue-deep);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.book-other-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.book-other-btn:hover { color: var(--ink); }
+
+/* 상태 2 — 칩 + 검색 */
+.book-browse-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.book-search-input {
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  outline: none;
+  padding: 9px 12px;
+  transition: border-color 140ms;
+  width: 100%;
+}
+.book-search-input:focus { border-color: var(--grid-blue-deep); }
+.book-search-input::placeholder { color: var(--muted); }
+.book-chips-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.book-chips-row::-webkit-scrollbar { display: none; }
+.book-chip {
+  align-items: center;
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 8px;
+  transition: border-color 140ms, background 140ms;
+  width: 68px;
+}
+.book-chip:hover {
+  background: rgba(159, 199, 212, 0.08);
+  border-color: var(--grid-blue);
+}
+.book-chip-title {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  width: 100%;
+}
+.book-search-empty {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+  padding: 4px 0;
+}
+.book-new-btn {
+  align-items: center;
+  background: none;
+  border: 1.5px dashed var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+  justify-content: center;
+  padding: 9px;
+  transition: border-color 140ms, color 140ms;
+}
+.book-new-btn:hover { border-color: var(--grid-blue); color: var(--grid-blue-deep); }
+
+/* 상태 3 — 선택 완료 */
+.book-selected-row {
+  align-items: center;
+  background: rgba(159, 199, 212, 0.08);
+  border: 1px solid var(--grid-blue);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.book-clear-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px;
+}
+.book-clear-btn:hover { color: var(--ink); }
+
+/* 상태 4 — 새 책 입력 */
+.book-new-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* ── 저장 완료 + 순간 선택 ──────────────────────────────────── */
 .top-pill {
   align-items: center;
